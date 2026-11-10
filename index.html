@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Penilaian KPI Karyawan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans antialiased pb-20">
+
+    <!-- Header / Navbar -->
+    <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white text-indigo-700 p-2 rounded-lg font-bold text-xl shadow">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">Sistem KPI Karyawan</h1>
+                    <p class="text-xs text-indigo-200">Evaluasi Harian & Rekapitulasi Bulanan Otomatis</p>
+                </div>
+            </div>
+            <!-- Backup & Restore Data Buttons -->
+            <div class="flex items-center gap-2">
+                <button onclick="exportData()"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded font-medium border border-indigo-400 transition flex items-center gap-1">
+                    <i class="fa-solid fa-download"></i> Backup JSON
+                </button>
+                <label
+                    class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded font-medium border border-indigo-400 transition cursor-pointer flex items-center gap-1">
+                    <i class="fa-solid fa-upload"></i> Restore
+                    <input type="file" id="importFile" accept=".json" onchange="importData(event)" class="hidden">
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigasi Tab -->
+    <nav class="bg-white border-b shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 flex overflow-x-auto space-x-6 py-2 no-scrollbar">
+            <button onclick="switchTab('dashboard')" id="btn-dashboard"
+                class="tab-btn font-semibold text-sm pb-2 border-b-2 border-indigo-600 text-indigo-600 whitespace-nowrap flex items-center gap-2">
+                <i class="fa-solid fa-house"></i> Dashboard
+            </button>
+            <button onclick="switchTab('karyawan')" id="btn-karyawan"
+                class="tab-btn text-slate-600 hover:text-indigo-600 font-medium text-sm pb-2 border-b-2 border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fa-solid fa-users"></i> Data Karyawan
+            </button>
+            <button onclick="switchTab('input')" id="btn-input"
+                class="tab-btn text-slate-600 hover:text-indigo-600 font-medium text-sm pb-2 border-b-2 border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square"></i> Input Harian
+            </button>
+            <button onclick="switchTab('riwayat')" id="btn-riwayat"
+                class="tab-btn text-slate-600 hover:text-indigo-600 font-medium text-sm pb-2 border-b-2 border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Harian
+            </button>
+            <button onclick="switchTab('rekap')" id="btn-rekap"
+                class="tab-btn text-slate-600 hover:text-indigo-600 font-medium text-sm pb-2 border-b-2 border-transparent whitespace-nowrap flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice"></i> Rekap Bulanan
+            </button>
+        </div>
+    </nav>
+
+    <!-- Konten Utama -->
+    <main class="max-w-7xl mx-auto px-4 mt-6">
+
+        <!-- TAB: DASHBOARD -->
+        <section id="tab-dashboard" class="space-y-6">
+            <div
+                class="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-6 text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold">Ringkasan Kinerja Tim</h2>
+                    <p class="text-indigo-100 text-sm mt-1">Pantau produktivitas dan performa seluruh karyawan secara
+                        real-time.</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-md px-4 py-2 rounded-lg border border-white/20 text-sm">
+                    <span id="dashTotalKaryawan" class="font-bold text-lg">0</span> Karyawan Terdaftar
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Chart Rata-rata Skor -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-700 mb-4 text-sm uppercase tracking-wider"><i
+                            class="fa-solid fa-chart-bar text-indigo-600 mr-2"></i> Rata-rata Skor Kategori Tim Bulan
+                        Ini</h3>
+                    <div class="relative h-64">
+                        <canvas id="dashboardChart"></canvas>
+                    </div>
+                </div>
+                <!-- Kartu Informasi Cepat -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-700 mb-2 text-sm uppercase tracking-wider"><i
+                                class="fa-solid fa-circle-info text-indigo-600 mr-2"></i> Panduan Singkat Sistem KPI
+                        </h3>
+                        <ul class="text-xs text-slate-600 space-y-2 mt-3 list-disc pl-4">
+                            <li><strong>Input Harian:</strong> Lakukan pengisian setiap hari kerja untuk setiap
+                                karyawan.</li>
+                            <li><strong>Skala Penilaian:</strong> Etos Kerja, Sikap & Kolaborasi, dan Dampak bernilai
+                                <strong>1 - 10</strong>. Inovasi bernilai <strong>1 - 4</strong>.</li>
+                            <li><strong>Pembulatan Otomatis:</strong> Nilai bulanan otomatis dihitung berdasarkan
+                                rata-rata harian dalam satu bulan penuh dan dibulatkan ke bilangan bulat terdekat.</li>
+                            <li><strong>Penyimpanan Aman:</strong> Data tersimpan otomatis di memori browser Anda (tidak
+                                hilang saat di-refresh). Gunakan tombol <em>Backup JSON</em> untuk mengamankan data ke
+                                file komputer.</li>
+                        </ul>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+                        <button onclick="switchTab('input')"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2 rounded font-medium shadow transition">
+                            Mulai Input Harian <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: DATA KARYAWAN -->
+        <section id="tab-karyawan" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-indigo-600"></i> Tambah Karyawan Baru
+                </h2>
+                <form id="formKaryawan" onsubmit="tambahKaryawan(event)" class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="namaKaryawan" placeholder="Nama Lengkap Karyawan" required
+                        class="flex-1 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="posisiKaryawan" placeholder="Posisi / Bagian (Opsional)"
+                        class="flex-1 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button type="submit"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow transition">
+                        Simpan Karyawan
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-address-book text-indigo-600"></i> Daftar Karyawan
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 border-b">
+                                <th class="p-3">No</th>
+                                <th class="p-3">Nama Karyawan</th>
+                                <th class="p-3">Posisi / Bagian</th>
+                                <th class="p-3 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelKaryawanBody">
+                            <!-- Diisi via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: INPUT HARIAN -->
+        <section id="tab-input" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-check text-indigo-600"></i> Form Penilaian KPI Harian
+                </h2>
+                <p class="text-xs text-slate-500 mb-6">Isi lembar kerja ini setiap hari untuk karyawan yang
+                    bersangkutan.</p>
+
+                <form id="formInputHarian" onsubmit="simpanInputHarian(event)" class="space-y-6">
+                    <div
+                        class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Input</label>
+                            <input type="date" id="inputTanggal" required
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Karyawan</label>
+                            <select id="inputKaryawanId" required
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500">
+                                <option value="">-- Pilih Karyawan --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Kategori 1: Kinerja & Produktivitas -->
+                    <div class="border border-purple-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-purple-700 text-white px-4 py-2 font-bold text-sm">
+                            1. Nilai Kinerja & Produktivitas
+                        </div>
+                        <div class="p-4 space-y-4 bg-purple-50/20">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah unit yang
+                                    diproduksi / hari</label>
+                                <input type="number" id="kpUnit" min="0" value="0" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Produk
+                                    Cacat</label>
+                                <input type="number" id="kpCacat" min="0" value="0" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kepatuhan terhadap SOP (1
+                                    - 10)</label>
+                                <input type="number" id="kpSop" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kategori 2: Etos Kerja & Dedikasi (Tanpa Kehadiran) -->
+                    <div class="border border-sky-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-sky-600 text-white px-4 py-2 font-bold text-sm">
+                            2. Nilai Etos Kerja & Dedikasi (Skala 1 - 10)
+                        </div>
+                        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-sky-50/20">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggung jawab dalam
+                                    pekerjaan</label>
+                                <input type="number" id="ekTanggungJawab" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Inisiatif dan
+                                    Proaktif</label>
+                                <input type="number" id="ekInisiatif" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kedisiplinan &
+                                    Kepatuhan</label>
+                                <input type="number" id="ekKedisiplinan" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Semangat dan
+                                    Loyalitas</label>
+                                <input type="number" id="ekSemangat" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kategori 3: Inovasi dan Kreativitas (Skala 1 - 4) -->
+                    <div class="border border-pink-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-pink-600 text-white px-4 py-2 font-bold text-sm">
+                            3. Inovasi dan Kreativitas (Skala 1 - 4)
+                        </div>
+                        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-pink-50/20">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah ide atau solusi
+                                    baru</label>
+                                <input type="number" id="invIde" min="1" max="4" value="2" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Dampak dari
+                                    inovasi</label>
+                                <input type="number" id="invDampak" min="1" max="4" value="2" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Penerapan ide</label>
+                                <input type="number" id="invPenerapan" min="1" max="4" value="2" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kemampuan berpikir
+                                    kreatif</label>
+                                <input type="number" id="invKreatif" min="1" max="4" value="2" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kolaborasi dalam
+                                    inovasi</label>
+                                <input type="number" id="invKolaborasi" min="1" max="4" value="2" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kategori 4: Sikap dan Kolaborasi -->
+                    <div class="border border-emerald-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-emerald-600 text-white px-4 py-2 font-bold text-sm">
+                            4. Sikap dan Kolaborasi (Skala 1 - 10)
+                        </div>
+                        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-emerald-50/20">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sikap positif &
+                                    Profesionalisme</label>
+                                <input type="number" id="skSikap" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Komunikasi
+                                    efektif</label>
+                                <input type="number" id="skKomunikasi" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kerja sama tim</label>
+                                <input type="number" id="skTim" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Respon terhadap
+                                    feedback</label>
+                                <input type="number" id="skFeedback" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kepedulian terhadap rekan
+                                    kerja</label>
+                                <input type="number" id="skKepedulian" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kategori 5: Dampak Karyawan Terhadap Perusahaan -->
+                    <div class="border border-red-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-red-600 text-white px-4 py-2 font-bold text-sm">
+                            5. Dampak Karyawan Terhadap Perusahaan (Skala 1 - 10)
+                        </div>
+                        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-red-50/20">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kinerja dan
+                                    produktivitas</label>
+                                <input type="number" id="dmKinerja" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Efisiensi dan
+                                    Penghematan</label>
+                                <input type="number" id="dmEfisiensi" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Inovasi & Perbaikan
+                                    proses</label>
+                                <input type="number" id="dmInovasi" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Loyalitas &
+                                    Retensi</label>
+                                <input type="number" id="dmLoyalitas" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kolaborasi & pengaruh
+                                    dalam tim</label>
+                                <input type="number" id="dmPengaruh" min="1" max="10" value="8" required
+                                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-xl shadow-md transition text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan Input Harian
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB: RIWAYAT HARIAN -->
+        <section id="tab-riwayat" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> Riwayat Penilaian Harian
+                    </h2>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <input type="month" id="filterBulanRiwayat" onchange="renderRiwayat()"
+                            class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 border-b">
+                                <th class="p-3">Tanggal</th>
+                                <th class="p-3">Nama Karyawan</th>
+                                <th class="p-3 text-center">Unit / Cacat</th>
+                                <th class="p-3 text-center">Etos Kerja</th>
+                                <th class="p-3 text-center">Inovasi</th>
+                                <th class="p-3 text-center">Sikap</th>
+                                <th class="p-3 text-center">Dampak</th>
+                                <th class="p-3 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelRiwayatBody">
+                            <!-- Diisi via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: REKAP BULANAN -->
+        <section id="tab-rekap" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-file-invoice text-indigo-600"></i> Rekapitulasi & Pembulatan Bulanan
+                        </h2>
+                        <p class="text-xs text-slate-500">Nilai merupakan akumulasi rata-rata harian yang otomatis
+                            dibulatkan.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="month" id="filterBulanRekap" onchange="renderRekap()"
+                            class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-indigo-900 text-white border-b">
+                                <th class="p-3">Karyawan</th>
+                                <th class="p-3 text-center">Total Hari Masuk</th>
+                                <th class="p-3 text-center">Total Unit / Cacat</th>
+                                <th class="p-3 text-center">Kinerja & Prod.</th>
+                                <th class="p-3 text-center">Etos Kerja</th>
+                                <th class="p-3 text-center">Inovasi</th>
+                                <th class="p-3 text-center">Sikap & Kolaborasi</th>
+                                <th class="p-3 text-center">Dampak Perusahaan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelRekapBody">
+                            <!-- Diisi via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Script Aplikasi -->
+    <script>
+        // State Data & LocalStorage Setup
+        let db = JSON.parse(localStorage.getItem('kpi_db_v3')) || {
+            karyawan: [],
+            riwayat: []
+        };
+
+        function simpanDB() {
+            localStorage.setItem('kpi_db_v3', JSON.stringify(db));
+        }
+
+        // Inisialisasi Tanggal Default Bulan Ini
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            const currentYearMonth = today.slice(0, 7);
+
+            document.getElementById('inputTanggal').value = today;
+            document.getElementById('filterBulanRiwayat').value = currentYearMonth;
+            document.getElementById('filterBulanRekap').value = currentYearMonth;
+
+            refreshAll();
+        });
+
+        function refreshAll() {
+            renderKaryawan();
+            populateSelectKaryawan();
+            renderRiwayat();
+            renderRekap();
+            renderDashboard();
+        }
+
+        // Navigasi Tab
+        function switchTab(tabId) {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-indigo-600', 'text-indigo-600', 'font-semibold');
+                btn.classList.add('border-transparent', 'text-slate-600');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`btn-${tabId}`);
+            activeBtn.classList.remove('border-transparent', 'text-slate-600');
+            activeBtn.classList.add('border-indigo-600', 'text-indigo-600', 'font-semibold');
+
+            if (tabId === 'dashboard') {
+                renderDashboardChart();
+            }
+        }
+
+        // Manajemen Karyawan
+        function tambahKaryawan(e) {
+            e.preventDefault();
+            const nama = document.getElementById('namaKaryawan').value.trim();
+            const posisi = document.getElementById('posisiKaryawan').value.trim();
+            if (!nama) return;
+
+            db.karyawan.push({
+                id: 'K_' + Date.now(),
+                nama: nama,
+                posisi: posisi || '-'
+            });
+            simpanDB();
+            document.getElementById('formKaryawan').reset();
+            refreshAll();
+            alert('Karyawan berhasil ditambahkan!');
+        }
+
+        function hapusKaryawan(id) {
+            if (confirm('Hapus karyawan ini? Data riwayat terkait juga akan dibersihkan.')) {
+                db.karyawan = db.karyawan.filter(k => k.id !== id);
+                db.riwayat = db.riwayat.filter(r => r.karyawanId !== id);
+                simpanDB();
+                refreshAll();
+            }
+        }
+
+        function renderKaryawan() {
+            const tbody = document.getElementById('tabelKaryawanBody');
+            tbody.innerHTML = '';
+            if (db.karyawan.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada data karyawan.</td></tr>`;
+                return;
+            }
+            db.karyawan.forEach((k, index) => {
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="p-3">${index + 1}</td>
+                        <td class="p-3 font-medium text-slate-800">${k.nama}</td>
+                        <td class="p-3 text-slate-600">${k.posisi}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="hapusKaryawan('${k.id}')" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 bg-red-50 rounded"><i class="fa-solid fa-trash"></i> Hapus</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('dashTotalKaryawan').innerText = db.karyawan.length;
+        }
+
+        function populateSelectKaryawan() {
+            const select = document.getElementById('inputKaryawanId');
+            select.innerHTML = '<option value="">-- Pilih Karyawan --</option>';
+            db.karyawan.forEach(k => {
+                select.innerHTML += `<option value="${k.id}">${k.nama} (${k.posisi})</option>`;
+            });
+        }
+
+        // Input Harian
+        function simpanInputHarian(e) {
+            e.preventDefault();
+            const data = {
+                id: 'R_' + Date.now(),
+                tanggal: document.getElementById('inputTanggal').value,
+                karyawanId: document.getElementById('inputKaryawanId').value,
+                kp: {
+                    unit: Number(document.getElementById('kpUnit').value),
+                    cacat: Number(document.getElementById('kpCacat').value),
+                    sop: Number(document.getElementById('kpSop').value)
+                },
+                ek: {
+                    tanggungJawab: Number(document.getElementById('ekTanggungJawab').value),
+                    inisiatif: Number(document.getElementById('ekInisiatif').value),
+                    kedisiplinan: Number(document.getElementById('ekKedisiplinan').value),
+                    semangat: Number(document.getElementById('ekSemangat').value)
+                },
+                inv: {
+                    ide: Number(document.getElementById('invIde').value),
+                    dampak: Number(document.getElementById('invDampak').value),
+                    penerapan: Number(document.getElementById('invPenerapan').value),
+                    kreatif: Number(document.getElementById('invKreatif').value),
+                    kolaborasi: Number(document.getElementById('invKolaborasi').value)
+                },
+                sk: {
+                    sikap: Number(document.getElementById('skSikap').value),
+                    komunikasi: Number(document.getElementById('skKomunikasi').value),
+                    tim: Number(document.getElementById('skTim').value),
+                    feedback: Number(document.getElementById('skFeedback').value),
+                    kepedulian: Number(document.getElementById('skKepedulian').value)
+                },
+                dm: {
+                    kinerja: Number(document.getElementById('dmKinerja').value),
+                    efisiensi: Number(document.getElementById('dmEfisiensi').value),
+                    inovasi: Number(document.getElementById('dmInovasi').value),
+                    loyalitas: Number(document.getElementById('dmLoyalitas').value),
+                    pengaruh: Number(document.getElementById('dmPengaruh').value)
+                }
+            };
+
+            db.riwayat.push(data);
+            simpanDB();
+            alert('Input harian berhasil disimpan!');
+            document.getElementById('formInputHarian').reset();
+            document.getElementById('inputTanggal').value = new Date().toISOString().split('T')[0];
+            refreshAll();
+        }
+
+        function hapusRiwayat(id) {
+            if (confirm('Hapus data riwayat harian ini?')) {
+                db.riwayat = db.riwayat.filter(r => r.id !== id);
+                simpanDB();
+                refreshAll();
+            }
+        }
+
+        // Render Riwayat
+        function renderRiwayat() {
+            const bulanFilter = document.getElementById('filterBulanRiwayat').value;
+            const tbody = document.getElementById('tabelRiwayatBody');
+            tbody.innerHTML = '';
+
+            const filtered = db.riwayat.filter(r => r.tanggal.startsWith(bulanFilter));
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">Tidak ada riwayat pada bulan ini.</td></tr>`;
+                return;
+            }
+
+            filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+
+            filtered.forEach(r => {
+                const karyawan = db.karyawan.find(k => k.id === r.karyawanId);
+                const namaKar = karyawan ? karyawan.nama : 'Karyawan Dihapus';
+
+                // Rata-rata parsial per kategori harian untuk ringkasan tabel
+                const avgEk = ((r.ek.tanggungJawab + r.ek.inisiatif + r.ek.kedisiplinan + r.ek.semangat) / 4).toFixed(1);
+                const avgInv = ((r.inv.ide + r.inv.dampak + r.inv.penerapan + r.inv.kreatif + r.inv.kolaborasi) / 5).toFixed(1);
+                const avgSk = ((r.sk.sikap + r.sk.komunikasi + r.sk.tim + r.sk.feedback + r.sk.kepedulian) / 5).toFixed(1);
+                const avgDm = ((r.dm.kinerja + r.dm.efisiensi + r.dm.inovasi + r.dm.loyalitas + r.dm.pengaruh) / 5).toFixed(1);
+
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="p-3 text-xs font-medium">${r.tanggal}</td>
+                        <td class="p-3 font-semibold text-slate-800">${namaKar}</td>
+                        <td class="p-3 text-center text-xs"><span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">${r.kp.unit} unit</span> / <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">${r.kp.cacat} cacat</span></td>
+                        <td class="p-3 text-center font-medium">${avgEk}</td>
+                        <td class="p-3 text-center font-medium">${avgInv}</td>
+                        <td class="p-3 text-center font-medium">${avgSk}</td>
+                        <td class="p-3 text-center font-medium">${avgDm}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="hapusRiwayat('${r.id}')" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 bg-red-50 rounded"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Render Rekapitulasi & Pembulatan Bulanan
+        function renderRekap() {
+            const bulanFilter = document.getElementById('filterBulanRekap').value;
+            const tbody = document.getElementById('tabelRekapBody');
+            tbody.innerHTML = '';
+
+            const filtered = db.riwayat.filter(r => r.tanggal.startsWith(bulanFilter));
+            if (db.karyawan.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">Belum ada data karyawan.</td></tr>`;
+                return;
+            }
+
+            db.karyawan.forEach(k => {
+                const dataKaryawan = filtered.filter(r => r.karyawanId === k.id);
+                const totalHari = dataKaryawan.length;
+
+                if (totalHari === 0) {
+                    tbody.innerHTML += `
+                        <tr class="border-b hover:bg-slate-50">
+                            <td class="p-3 font-semibold text-slate-800">${k.nama} <span class="block text-xs font-normal text-slate-400">${k.posisi}</span></td>
+                            <td class="p-3 text-center text-slate-400">0</td>
+                            <td class="p-3 text-center text-slate-400">-</td>
+                            <td class="p-3 text-center text-slate-400">-</td>
+                            <td class="p-3 text-center text-slate-400">-</td>
+                            <td class="p-3 text-center text-slate-400">-</td>
+                            <td class="p-3 text-center text-slate-400">-</td>
+                            <td class="p-3 text-center text-slate-400">-</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                // Kalkulasi Total & Rata-rata Bulanan + Pembulatan Otomatis (Math.round)
+                let sumUnit = 0, sumCacat = 0;
+                let sumSop = 0;
+                let sumEk = 0, sumInv = 0, sumSk = 0, sumDm = 0;
+
+                dataKaryawan.forEach(r => {
+                    sumUnit += r.kp.unit;
+                    sumCacat += r.kp.cacat;
+                    sumSop += r.kp.sop;
+
+                    sumEk += (r.ek.tanggungJawab + r.ek.inisiatif + r.ek.kedisiplinan + r.ek.semangat) / 4;
+                    sumInv += (r.inv.ide + r.inv.dampak + r.inv.penerapan + r.inv.kreatif + r.inv.kolaborasi) / 5;
+                    sumSk += (r.sk.sikap + r.sk.komunikasi + r.sk.tim + r.sk.feedback + r.sk.kepedulian) / 5;
+                    sumDm += (r.dm.kinerja + r.dm.efisiensi + r.dm.inovasi + r.dm.loyalitas + r.dm.pengaruh) / 5;
+                });
+
+                // Pembulatan ke bilangan bulat terdekat
+                const avgSopBulat = Math.round(sumSop / totalHari);
+                const avgEkBulat = Math.round(sumEk / totalHari);
+                const avgInvBulat = Math.round(sumInv / totalHari);
+                const avgSkBulat = Math.round(sumSk / totalHari);
+                const avgDmBulat = Math.round(sumDm / totalHari);
+
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="p-3 font-semibold text-slate-800">${k.nama} <span class="block text-xs font-normal text-slate-400">${k.posisi}</span></td>
+                        <td class="p-3 text-center font-medium">${totalHari} hari</td>
+                        <td class="p-3 text-center text-xs"><span class="text-purple-700 font-bold">${sumUnit}</span> / <span class="text-red-600 font-bold">${sumCacat}</span></td>
+                        <td class="p-3 text-center"><span class="bg-purple-100 text-purple-800 px-2 py-1 rounded font-bold text-xs">SOP: ${avgSopBulat}</span></td>
+                        <td class="p-3 text-center"><span class="bg-sky-100 text-sky-800 px-2 py-1 rounded font-bold text-xs">${avgEkBulat} / 10</span></td>
+                        <td class="p-3 text-center"><span class="bg-pink-100 text-pink-800 px-2 py-1 rounded font-bold text-xs">${avgInvBulat} / 4</span></td>
+                        <td class="p-3 text-center"><span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold text-xs">${avgSkBulat} / 10</span></td>
+                        <td class="p-3 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded font-bold text-xs">${avgDmBulat} / 10</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Dashboard Chart
+        let myChart = null;
+        function renderDashboard() {
+            document.getElementById('dashTotalKaryawan').innerText = db.karyawan.length;
+        }
+
+        function renderDashboardChart() {
+            const ctx = document.getElementById('dashboardChart').getContext('2d');
+            const bulanFilter = document.getElementById('filterBulanRekap').value;
+            const filtered = db.riwayat.filter(r => r.tanggal.startsWith(bulanFilter));
+
+            let tEk = 0, tInv = 0, tSk = 0, tDm = 0, count = filtered.length;
+            if (count > 0) {
+                filtered.forEach(r => {
+                    tEk += (r.ek.tanggungJawab + r.ek.inisiatif + r.ek.kedisiplinan + r.ek.semangat) / 4;
+                    tInv += (r.inv.ide + r.inv.dampak + r.inv.penerapan + r.inv.kreatif + r.inv.kolaborasi) / 5;
+                    tSk += (r.sk.sikap + r.sk.komunikasi + r.sk.tim + r.sk.feedback + r.sk.kepedulian) / 5;
+                    tDm += (r.dm.kinerja + r.dm.efisiensi + r.dm.inovasi + r.dm.loyalitas + r.dm.pengaruh) / 5;
+                });
+                tEk = (tEk / count).toFixed(1);
+                tInv = (tInv / count).toFixed(1);
+                tSk = (tSk / count).toFixed(1);
+                tDm = (tDm / count).toFixed(1);
+            }
+
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Etos Kerja', 'Inovasi', 'Sikap & Kolaborasi', 'Dampak Perusahaan'],
+                    datasets: [{
+                        label: 'Rata-rata Tim',
+                        data: [tEk, tInv * 2.5, tSk, tDm], // Inovasi dinormalkan ke skala 10 untuk visualisasi chart
+                        backgroundColor: ['#0284c7', '#db2777', '#059669', '#dc2626'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 10 }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Backup & Restore Fitur
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `backup_kpi_karyawan_${new Date().toISOString().slice(0, 10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const fileReader = new FileReader();
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0], "UTF-8");
+                fileReader.onload = (e) => {
+                    try {
+                        db = JSON.parse(e.target.result);
+                        simpanDB();
+                        refreshAll();
+                        alert('Data berhasil dipulihkan (Restore)!');
+                    } catch (err) {
+                        alert('File cadangan tidak valid!');
+                    }
+                };
+            }
+        }
+    </script>
+</body>
+
+</html>
